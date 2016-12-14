@@ -1,0 +1,506 @@
+﻿<html>
+<head>
+	<meta charset="utf-8">
+	<title>RK_3D_FIGURE</title>
+</head>
+
+<body>
+<p>RK_3D_FIGURE / Petrenko. / IU8-51</p>
+<p>Что делать:</p>
+<p>  1) Щелкайте левой кнопкой мыши пока не надоест.</p>
+<canvas id='canvas01' width='500' height='300'>
+	<script>
+	var DEBUG_COUNTER = 0;
+	var drawed_lines = 0
+	var nondrawed_lines = 0;
+  
+	var canvas;
+	var ctx;
+	var zbuf;
+	var W,H,D;		// screen Weight, Height, Depth for (X,Y,Z)
+	var trg;		// треугольники (заданы тремя точками, которые заданы векторами длины 4)
+	var points;		// DEBUG (точки для отладки)
+	
+	prepare_global_vars();
+	
+	ctx.fillStyle="#f0f0f0";  // grey
+	ctx.fillRect(0,0,canvas.width,canvas.height);  // серый фон
+	canvas.addEventListener("click", onClick);
+	
+	for (var i=0; i<trg.length; i++) {
+		draw_polynome_3d(trg[i], "#ffff00"); 
+	}
+	
+	
+	for (var i=3; i<points.length/2; i++) {
+		ctx.fillStyle="#00ffff";  // grey
+		draw_line(points[2*i-1], points[2*i]); 
+	}
+	
+	
+	ctx.fillStyle="#00ff00";
+	draw_line(points[0], points[1]);	// ВЕРТИКАЛЬНАЯ ОСЬ ЦЕНТРА ФИГУРЫ
+	
+	function prepare_global_vars() {
+		canvas = document.getElementById('canvas01');
+		ctx = canvas.getContext('2d');
+		
+		H = canvas.height;
+		W = canvas.width;
+		D = 1000;
+		
+		zbuf = [];
+		for (var x=0; x<canvas.width; x++) {
+			zbuf[x] = [];
+			for (var y=0; y<canvas.height; y++) {
+				zbuf[x][y] = 0;
+			}
+		}
+		fill_zbuf(D);
+		
+		trg = [];
+		points = [];
+		
+		// ОСЬ
+		points[0] = [ 0.50*W, 0.00*H, 0.50*D, 1];
+		points[1] = [ 0.50*W, 1.00*H, 0.50*D, 1];
+		
+		// ЗАДАЮЩИЕ ТОЧКИ ЛИНИИ БЕЗЬЕ
+		points[2] = [ 0.20*W, 0.3*H, 0.50*D, 1];
+		points[3] = [ 0.45*W, 0.5*H, 0.50*D, 1];
+		points[4] = [ 0.40*W, 0.8*H, 0.50*D, 1];
+		
+		generate_figure();
+	}
+	
+	function generate_figure() {
+		// Геренируем массив точек линии Безье
+		var bezier = get_bezier3p(0.05, points[2], points[3], points[4]);
+		
+		var bezier_prev = [];
+		var num_vert = 10;
+		
+		// Матрица поворота на заданный угол линии Безье один раз
+		var MRotate = get_MRotateY(Math.PI * 2 / num_vert);
+		var MMoveToZero = get_MMove(-points[0][0], -points[0][1], -points[0][2]);
+		var MMoveToCenter = get_MMove(points[0][0], points[0][1], points[0][2]);
+		var MChange = get_MMMult(MMoveToZero, MRotate);
+		MChange = get_MMMult(MChange, MMoveToCenter);
+		
+		// Полный круг
+		for (var i=0; i<=num_vert; i++) {
+			// Запоминаем предыдущую линию Безье
+			for (var t=0; t<bezier.length; t++)
+				bezier_prev[t] = bezier[t];
+			
+			// DEBUG
+			/*var str = "bezier_prev: \n";
+			for (var t=0; t<bezier_prev.length; t++)
+					str += "p["+t+"] = "+get_VPrint(bezier_prev[t])+"\n";
+			str += "\nbezier: \n";
+			for (var t=0; t<bezier.length; t++)
+					str += "p["+t+"] = "+get_VPrint(bezier[t])+"\n";*/
+			
+			// Генерим след линию Безье
+			for (var t=0; t<bezier.length; t++) {
+				bezier[t] = get_VMMult(bezier_prev[t], MChange);
+			}
+			
+			
+			// Запоминаем треугольники
+			for (var t=0; t<bezier.length-1; t++) {
+				trg[trg.length] = [
+					bezier_prev[t], 
+					bezier_prev[t+1], 
+					bezier[t]];
+				trg[trg.length] = [
+					bezier[t], 
+					bezier_prev[t+1], 
+					bezier[t+1]];
+			}
+			// Запоминаем контуры
+			points[points.length] = bezier_prev[0];
+			points[points.length] = bezier[0];
+			for (var t=0; t<bezier_prev.length-1; t++) {
+				points[points.length] = bezier_prev[t];
+				points[points.length] = bezier_prev[t+1];
+				points[points.length] = bezier_prev[t+1];
+				points[points.length] = bezier[t+1];
+				points[points.length] = bezier[t+1];
+				points[points.length] = bezier[t];
+				points[points.length] = bezier_prev[t+1];
+				points[points.length] = bezier[t];
+			}
+		}
+	}
+	
+	function get_bezier3p(step, P0, P1, P2) {	 //step - шаг из (0,1), рекомендуется 0.05
+		var X0 = P0[0];
+		var Y0 = P0[1];
+		var Z0 = P0[2];
+		var X1 = P1[0];
+		var Y1 = P1[1];
+		var Z1 = P1[2];
+		var X2 = P2[0];
+		var Y2 = P2[1];
+		var Z2 = P2[2];
+		var x = 0.0;
+		var y = 0.0;
+		var z = 0.0;
+		var bezier = [];  // массив точек линии Безье
+		for (var t=step; t<=1+step; t+=step) {
+			x = (1-t)*(1-t)*X0 + 2*(1-t)*t*X1 + t*t*X2;
+			y = (1-t)*(1-t)*Y0 + 2*(1-t)*t*Y1 + t*t*Y2;
+			z = (1-t)*(1-t)*Z0 + 2*(1-t)*t*Z1 + t*t*Z2;
+			bezier[bezier.length] = [x,y,z,1];
+		}
+		return bezier;
+	}
+	
+	function onClick() {	
+		// ЛКМ
+		if (event.which == 1) {		
+			ctx.fillStyle="#f0f0f0";  // grey
+			ctx.fillRect(0,0,canvas.width,canvas.height);  // серый фон
+			fill_zbuf(D);
+				
+		
+			/*var MMoveToZero = get_MMove(-points[0][0], -points[0][1], -points[0][2]);
+			var MMoveToC = get_MMove(points[0][0], points[0][1], points[0][2]);*/
+			var MMoveToZero = get_MMove(-0.5*W,-0.5*H,-0.5*D);
+			var MMoveToC = get_MMove(0.5*W,0.5*H,0.5*D);
+			var MRot1 = get_MRotateX(3.14*(-0.05));
+			var MRot2 = get_MRotateZ(3.14*(-0.03));
+			var MRot = get_MMMult(MRot1, MRot2);
+			var MChange = get_MMMult(MMoveToZero,get_MMMult(MRot, MMoveToC));
+			var MChange = get_MMMult(get_MMMult(MMoveToZero, MRot),MMoveToC);
+			
+			for (var i=0; i<points.length; i++) {
+				points[i] = get_VMMult(points[i], MChange);
+			}
+			for (var i=0; i<trg.length; i++) {
+				for (var t=0; t<3; t++) {
+					trg[i][t] = get_VMMult(trg[i][t], MChange);
+				}
+			}
+			
+			ctx.fillStyle="#000000";
+			for (var i=3; i<points.length/2; i++) {
+				draw_line(points[2*i-1], points[2*i]); 
+			}
+			for (var i=0; i<trg.length; i++) {
+				draw_polynome_3d(trg[i], "#ff0000"); 
+			}
+			
+			drawed_lines = 0;
+			nondrawed_lines = 0;
+		}
+		
+		// СКМ
+		else if (event.which == 2) {
+		}
+	}
+	
+
+	function get_random_color() {
+		var int_color = Math.floor(Math.random() * (0xFFFFFF - 0 + 1)) + 0;
+		return "#"+int_color.toString(16);
+	}
+	
+	function draw_line(A, B) {	// A = [x,y,z,w], B - the same
+		var X0 = Math.floor(A[0]/A[3]);
+		var Y0 = Math.floor(A[1]/A[3]);
+		var Z0 = Math.floor(A[2]/A[3]);
+		var X1 = Math.floor(B[0]/B[3]);
+		var Y1 = Math.floor(B[1]/B[3]);
+		var Z1 = Math.floor(B[2]/B[3]);
+		
+		var deltaX = Math.abs(X1 - X0);
+		var deltaY = Math.abs(Y1 - Y0);
+		var dX_more = deltaX >= deltaY;
+		var error = 0;
+		var addX = X0 < X1 ? 1 : -1;
+		var addY = Y0 < Y1 ? 1 : -1;
+		
+		if ( dX_more ) {
+			var deltaErr = deltaY;
+			var y = Y0;
+			var z;
+			for ( x = X0 ; x != X1 ; x += addX ) {
+				z = get_z_for_line(x, y, X0, Y0, Z0, X1, Y1, Z1);
+				if (  z < zbuf[x][y] ) {
+					ctx.fillRect(x,y,1,1);
+					//ctx.fillRect(x-1,y-1,3,3);  // TODO вернуть строку выше
+					zbuf[x][y] = z;
+				}
+				error += deltaErr;
+				if ( 2 * error >= deltaX ) {
+					y += addY;
+					error -= deltaX;
+				}
+			}
+		}
+		else {
+			var deltaErr = deltaX;
+			var x = X0;
+			var z;
+			for ( y = Y0 ; y != Y1 ; y += addY ) {
+				z = get_z_for_line(x, y, X0, Y0, Z0, X1, Y1, Z1);
+				if (  z < zbuf[x][y] ) {
+					ctx.fillRect(x,y,1,1);
+					//ctx.fillRect(x-1,y-1,3,3);  // TODO вернуть строку выше
+					zbuf[x][y] = z;
+				}
+				error += deltaErr;
+				if ( 2 * error >= deltaY ) {
+					x += addX;
+					error -= deltaY;
+				}
+			}
+		}
+	}
+	
+	function get_z_for_line(x, y, X0, Y0, Z0, X1, Y1, Z1) {
+		if (X1-X0 != 0) {
+			return Z0 + (Z1-Z0)*(x-X0)/(X1-X0);
+		} else {	// X1-X0==0
+			if (Y1-Y0 != 0) {
+				return Z0 + (Z1-Z0)*(y-Y0)/(Y1-Y0);
+			} else {	// X1-X0==0 && Y1-Y0==0
+				return Z1 > Z0 ? Z1 : Z0 ;
+			}
+		}
+		return 0;
+	
+	}
+	
+	function fill_polynom_lyne(Y, polynome, plane) {
+		var chp = [];				// check_positions
+		var num_of_chp = 0;
+
+		for (var i=1; i<polynome.length; i++) {
+			if (    Y<=polynome[i][1] && Y>polynome[i-1][1] 
+				    || Y>polynome[i][1] && Y<=polynome[i-1][1] ) {
+				var xk = polynome[i][0];
+				var yi = polynome[i][1];
+				var xi = polynome[i-1][0];
+				var yk = polynome[i-1][1];
+				chp[num_of_chp] = Math.round(xi+((yk-Y)*(xk-xi))/(yk-yi));
+				num_of_chp++;
+			}
+		}
+		if (    Y<=polynome[0][1] && Y>polynome[polynome.length-1][1] 
+				|| Y>polynome[0][1] && Y<=polynome[polynome.length-1][1] ) {
+			var xk = polynome[0][0];
+			var yi = polynome[0][1];
+			var xi = polynome[polynome.length-1][0];
+			var yk = polynome[polynome.length-1][1];
+			chp[num_of_chp] = Math.round(xi+((yk-Y)*(xk-xi))/(yk-yi));
+			num_of_chp++;
+		}
+		
+		
+		
+		if ( num_of_chp % 2 == 1 ) {
+			nondrawed_lines++;	//DEBUG
+			return;
+		}
+		
+		if ( num_of_chp == 0 ) {
+			//nondrawed_lines++;	//DEBUG
+			return;    	// Отрисовка не требуется
+		}
+		//сортировка
+		for (var i=0; i<num_of_chp-1; i++)
+			for (var j=num_of_chp-1; j>=0; j--)
+				if ( chp[j]>chp[j+1] ) {
+					var m = chp[j+1];
+					chp[j+1] = chp[j];
+					chp[j] = m;
+				}
+				
+		
+		// между каждой нечетной парой контольных точек отрисовываем линию
+		for (var i=0; i<num_of_chp/2; i++) {
+			//отрисовываем линию
+			for (var X=chp[2*i]+1; X<chp[2*i+1]; X++) {
+				var Z = get_Z(X,Y,plane);
+				
+				if (Z < zbuf[X][Y]) {
+					zbuf[X][Y] = Z;
+					ctx.fillRect(X,Y,1,1);
+				}
+			}
+		}
+		drawed_lines++;	//DEBUG
+	}
+	
+	function get_random_color() {
+		var int_color = Math.floor(Math.random() * (0xFFFFFF - 0 + 1)) + 0;
+		return "#"+int_color.toString(16);
+	}
+	
+	function draw_polynome_3d(polynome, color) {
+		// коэффициенты уравнения плоскости Ax + By + Сz + D = 0
+
+
+		var triangle = [polynome[0], polynome[1], polynome[2]];
+		var plane = get_plane_of_triangle(triangle);
+		
+		var y_max = polynome[0][1];
+		var y_min = y_max;
+		for (var i=0; i<polynome.length; i++) {
+			if (polynome[i][1] > y_max) 
+				y_max = polynome[i][1];
+			else if (polynome[i][1] < y_min) 
+				y_min = polynome[i][1];
+		}
+		y_min = Math.round(y_min);
+		y_max = Math.round(y_max);
+
+		// закраска построчно
+		ctx.fillStyle=color;
+		for (var y=y_max; y>=y_min; y--)
+			fill_polynom_lyne(y, polynome, plane);
+	}
+	
+	function get_plane_of_triangle(triangle) {
+		var plane = [];
+		var x1 = triangle[0][0];
+		var y1 = triangle[0][1];
+		var z1 = triangle[0][2];
+		var x2 = triangle[1][0];
+		var y2 = triangle[1][1];
+		var z2 = triangle[1][2];
+		var x3 = triangle[2][0];
+		var y3 = triangle[2][1];
+		var z3 = triangle[2][2];
+		plane[0] = y1*(z2 - z3) + y2*(z3 - z1) + y3*(z1 - z2); 
+		plane[1] = z1*(x2 - x3) + z2*(x3 - x1) + z3*(x1 - x2); 
+		plane[2] = x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2); 
+		plane[3] = x1*(y3*z2 - y2*z3) + y1*(x2*z3 - x3*z2) + z1*(x3*y2 - x2*y3);
+		return plane;
+	}
+	
+	function get_Z(x,y,plane) {
+		return (-plane[3]-plane[0]*x-plane[1]*y)/plane[2];
+	}
+	
+	function fill_zbuf(value) {
+		for (var x=0; x<canvas.width; x++) {
+			for (var y=0; y<canvas.height; y++) {
+				zbuf[x][y] = value;
+			}
+		}
+	}
+	
+	
+	
+	function get_MMMult(M1, M2) {
+		var MR = [];
+		for (var i=0; i<4; i++) {
+			MR[i] = [];
+			for (var j=0; j<4; j++) {
+				MR[i][j] = 0;
+				for (var s=0; s<4; s++)
+					MR[i][j] += M1[i][s]*M2[s][j];
+			}
+		}
+		return MR;
+	}
+	
+	function get_MVMult(M,V) {
+		var VR = [];
+		for (var i=0; i<4; i++) {
+			VR[i] = 0;
+			for (var s=0; s<4; s++)
+				VR[i] += M[i][s]*V[i];
+		}
+		return VR;
+	}
+	
+	function get_VMMult(V,M) {
+		var VR = [];
+		for (var i=0; i<4; i++) {
+			VR[i] = 0;
+			for (var s=0; s<4; s++)
+				VR[i] += V[s]*M[s][i];
+		}
+		return VR;
+	}
+  
+	function get_MPrint(M) {
+		var str = "";
+		for (var i=0; i<4; i++) {
+			for (var j=0; j<4; j++) {
+				str+="   "+M[i][j];
+			}
+			str+="\n";
+		}
+		return str;
+	}
+	
+	function get_VPrint(V) {
+		var str = "";
+		for (var i=0; i<4; i++) {
+			str+="   "+V[i];
+		}
+		return str;
+	}
+	
+	function get_MScale(sx, sy, sz)  {
+		var M = 
+			[[sx,  0,  0,  0],
+			 [ 0, sy,  0,  0],
+			 [ 0,  0, sz,  0],
+			 [ 0,  0,  0,  1]];
+		return M;
+	}
+	
+	function get_MMove(dx, dy, dz)  {
+		var M = 
+			[[ 1,  0,  0,  0],
+			 [ 0,  1,  0,  0],
+			 [ 0,  0,  1,  0],
+			 [dx, dy, dz,  1]];
+		return M;
+	}
+	
+	function get_MRotateX(rad)  {
+		var M = 
+			[[ 1,  0,  				0,  			0],
+			 [ 0,  Math.cos(rad),  	Math.sin(rad),	0],
+			 [ 0,  -Math.sin(rad),	Math.cos(rad),  0],
+			 [ 0,  0,  				0,  			1]];
+		return M;
+	}
+	
+	function get_MRotateZ(rad)  {
+		var M = 
+			[[ Math.cos(rad),  	Math.sin(rad),  0,  0],
+			 [ -Math.sin(rad),  Math.cos(rad),  0,  0],
+			 [ 0,  				0,  			1,  0],
+			 [ 0,  				0,  			0,  1]];
+		return M;
+	}
+	
+	function get_MRotateY(rad)  {
+		var M = 
+			[[ Math.cos(rad),  	0,  -Math.sin(rad), 0],
+			 [ 0,  				1,  0,  			0],
+			 [ Math.sin(rad),  	0,  Math.cos(rad),  0],
+			 [ 0,  				0,  0,  			1]];
+		return M;
+	}
+	
+	
+	
+	
+	
+	
+	
+	</script>
+</canvas>
+
+</body>
+</html>
