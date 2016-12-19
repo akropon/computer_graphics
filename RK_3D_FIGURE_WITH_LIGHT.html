@@ -5,43 +5,39 @@
 </head>
 
 <body>
-<p>RK_3D_FIGURE_WITH_LIGHT / Petrenko. / IU8-51</p>
+<p>RK_3D_FIGURE_WITH_LIGHT / Petrenko V.V. / IU8-51</p>
 <p>Figure in 3D.</p>
 <p>What to do:</p>
-<p>  1) Press left mouse button to rotate figure.</p>
+<p>  1) Press anywhere u want and watch the magic.</p>
 <canvas id='canvas01' width='500' height='300'>
 	<script>
 	var DEBUG_COUNTER = 0;
-	var drawed_lines = 0
-	var nondrawed_lines = 0;
+	
+	var mode_draw_polygons = true;
+	var mode_draw_lines = false;
   
 	var canvas;
 	var ctx;
 	var zbuf;
 	var W,H,D;		// screen Weight, Height, Depth for (X,Y,Z)
 	var trg;		// треугольники (заданы тремя точками, которые заданы векторами длины 4)
-	var points;		// DEBUG (точки для отладки)
+	var points;		// точки
 	var light_ort_3v;	// направлене вектора света
+	var figure_color;	// цвет фигуры
+	var background_color;
+	var base_points;		// три точки для постройки линии Безье
+	var figure_exists;	// можно ли рисовать фигуру
 	
 	prepare_global_vars();
-	
-	ctx.fillStyle="#f0f0f0";  // grey
-	ctx.fillRect(0,0,canvas.width,canvas.height);  // серый фон
+	background_color = "#ffeeff";
+	clear_scene();
 	canvas.addEventListener("click", onClick);
 	
-	for (var i=0; i<trg.length; i++) {
-		draw_polynome_3d(trg[i], "#ffff00"); 
-	}
+	
+	/*ctx.fillStyle="#00ff00";
+	draw_line(points[0], points[1]);	// ВЕРТИКАЛЬНАЯ ОСЬ ЦЕНТРА ФИГУРЫ*/
 	
 	
-	for (var i=3; i<points.length/2; i++) {
-		ctx.fillStyle="#00ffff";  // grey
-		draw_line(points[2*i-1], points[2*i]); 
-	}
-	
-	
-	ctx.fillStyle="#00ff00";
-	draw_line(points[0], points[1]);	// ВЕРТИКАЛЬНАЯ ОСЬ ЦЕНТРА ФИГУРЫ
 	
 	function prepare_global_vars() {
 		canvas = document.getElementById('canvas01');
@@ -74,7 +70,12 @@
 		
 		light_ort_3v = [ 1, 0, 0 ];
 		
-		generate_figure();
+		figure_color = "#ff0000";
+		background_color = "#000000";
+		base_points = [];
+		figure_exists = false;
+		
+		//generate_figure();
 	}
 	
 	function generate_figure() {
@@ -173,50 +174,6 @@
 			bezier[bezier.length] = [x,y,z,1];
 		}
 		return bezier;
-	}
-	
-	function onClick() {	
-		// ЛКМ
-		if (event.which == 1) {		
-			ctx.fillStyle="#000000";
-			ctx.fillRect(0,0,canvas.width,canvas.height);  // черный фон
-			fill_zbuf(D);
-				
-		
-			/*var MMoveToZero = get_MMove(-points[0][0], -points[0][1], -points[0][2]);
-			var MMoveToC = get_MMove(points[0][0], points[0][1], points[0][2]);*/
-			var MMoveToZero = get_MMove(-0.5*W,-0.5*H,-0.5*D);
-			var MMoveToC = get_MMove(0.5*W,0.5*H,0.5*D);
-			var MRot1 = get_MRotateX(3.14*(-0.05));
-			var MRot2 = get_MRotateZ(3.14*(-0.03));
-			var MRot = get_MMMult(MRot1, MRot2);
-			var MChange = get_MMMult(MMoveToZero,get_MMMult(MRot, MMoveToC));
-			var MChange = get_MMMult(get_MMMult(MMoveToZero, MRot),MMoveToC);
-			
-			for (var i=0; i<points.length; i++) {
-				points[i] = get_VMMult(points[i], MChange);
-			}
-			for (var i=0; i<trg.length; i++) {
-				for (var t=0; t<3; t++) {
-					trg[i][t] = get_VMMult(trg[i][t], MChange);
-				}
-			}
-			
-			/*ctx.fillStyle="#000000";
-			for (var i=3; i<points.length/2; i++) {
-				draw_line(points[2*i-1], points[2*i]); 
-			}*/
-			for (var i=0; i<trg.length; i++) {
-				draw_polynome_3d(trg[i], "#ff0000"); 
-			}
-			
-			drawed_lines = 0;
-			nondrawed_lines = 0;
-		}
-		
-		// СКМ
-		else if (event.which == 2) {
-		}
 	}
 	
 	function draw_line(A, B) {	// A = [x,y,z,w], B - the same
@@ -331,12 +288,10 @@
 		
 		
 		if ( num_of_chp % 2 == 1 ) {
-			nondrawed_lines++;	//DEBUG
 			return;
 		}
 		
 		if ( num_of_chp == 0 ) {
-			//nondrawed_lines++;	//DEBUG
 			return;    	// Отрисовка не требуется
 		}
 		//сортировка
@@ -361,7 +316,6 @@
 				}
 			}
 		}
-		drawed_lines++;	//DEBUG
 	}
 	
 	function get_z_for_line(x, y, X0, Y0, Z0, X1, Y1, Z1) {
@@ -406,13 +360,13 @@
 		var int_blue 	= parseInt(color.charAt(5)+color.charAt(6),16);
 		
 		//alert("incolor="+color+"\nint_red="+int_red+"\nint_green="+int_green+"\nint_blue="+int_blue);
-	
-		var normal_ort = [];
 		
+		var normal_ort = get_VOrt_3v(plane_3v);
+		/*var normal_ort = [];
 		var normal_length = Math.sqrt(plane_3v[0]*plane_3v[0] + plane_3v[1]*plane_3v[1] + plane_3v[2]*plane_3v[2]);
 		normal_ort[0] = plane_3v[0]/normal_length;
 		normal_ort[1] = plane_3v[1]/normal_length;
-		normal_ort[2] = plane_3v[2]/normal_length;
+		normal_ort[2] = plane_3v[2]/normal_length;*/
 		
 		var scalar = get_VVScalar(normal_ort, light_ort_3v);
 		// scalar lies in [-1;1]
@@ -426,20 +380,68 @@
 		int_green = Math.floor(int_green * shadow_factor);
 		int_blue  = Math.floor(int_blue * shadow_factor);
 		
+		var blick_factor = Math.pow(shadow_factor,10);
+		int_red += (255-int_red)*blick_factor;
+		int_green += (255-int_green)*blick_factor;
+		int_blue += (255-int_blue)*blick_factor;
+		
+		
+		int_red   = Math.floor(int_red);
+		int_green = Math.floor(int_green);
+		int_blue  = Math.floor(int_blue);
+		
 		var str_red;
 		var str_green;
 		var str_blue;
 		if (int_red < 16) str_red = "0"+int_red.toString(16);
 		else str_red = int_red.toString(16);
-		if (int_green < 16) str_green = "0"+int_blue.toString(16);
-		else str_green = int_red.toString(16);
+		if (int_green < 16) str_green = "0"+int_green.toString(16);
+		else str_green = int_green.toString(16);
 		if (int_blue < 16) str_blue = "0"+int_blue.toString(16);
-		else str_blue = int_red.toString(16);
+		else str_blue = int_blue.toString(16);
 		
 		
 		var res_color = "#" + str_red + str_green + str_blue;
 		//alert("out_color ="+res_color+"\nint_red="+int_red+"\nint_green="+int_green+"\nint_blue="+int_blue);
 		return res_color;
+	}
+	
+	
+	
+	
+	function onClick() {	
+		// ЛКМ
+		if (event.which == 1) {
+			if ( figure_exists ) {
+				if (trg.length < 1) return;
+				clear_scene();
+				rotate_figure(3.14*(-0.05), 0, 3.14*(-0.03));
+				redraw_figure();
+			} else {
+				var x = event.offsetX;		
+				var y = event.offsetY;	
+				ctx.fillStyle = "#000000";
+				ctx.fillRect(x-2,y-2,5,5);
+				base_points[base_points.length] = [x,y,0.5*D,1];
+				if ( base_points.length == 3 ) {
+					for (var i=2; i<=4; i++)
+						points[i] = [ base_points[i-2][0], base_points[i-2][1], base_points[i-2][2], base_points[i-2][2]];
+					
+					generate_figure();
+					figure_exists = true;
+					background_color = "#000000";
+					clear_scene();
+					redraw_figure();
+				}
+			}
+			
+			
+			
+		}
+		
+		// СКМ
+		else if (event.which == 2) {
+		}
 	}
 	
 	function fill_zbuf(value) {
@@ -449,6 +451,68 @@
 			}
 		}
 	}
+	
+	function clear_scene() {
+		ctx.fillStyle=background_color;
+		ctx.fillRect(0,0,canvas.width,canvas.height);
+		fill_zbuf(D);
+	}
+	
+	function rotate_figure(angX, angY, angZ) {
+		var MChange = get_MRotateRelativeXYZ(angX, angY, angZ, [0.5*W,0.5*H,0.5*D] );
+		
+		for (var i=0; i<points.length; i++)
+			points[i] = get_VMMult(points[i], MChange);
+		for (var i=0; i<trg.length; i++)
+			for (var t=0; t<3; t++)
+				trg[i][t] = get_VMMult(trg[i][t], MChange);
+	}
+	
+	function onclick_rotate_figure(angX, angY, angZ) {
+			if (trg.length < 1) return;
+			clear_scene();
+			rotate_figure(angX, angY, angZ);
+			redraw_figure();
+	}
+	
+	function redraw_figure() {
+		if ( mode_draw_lines ) {
+			ctx.fillStyle="#777777";
+			for (var i=3; i<points.length/2; i++)
+				draw_line(points[2*i-1], points[2*i]);
+		}
+		if ( mode_draw_polygons ) {
+			for (var i=0; i<trg.length; i++)
+				draw_polynome_3d(trg[i], figure_color); 
+		}
+	}
+	
+	function set_new_random_color_for_figure() {
+		clear_scene();
+		figure_color = get_random_color();
+		redraw_figure();
+	}
+	
+	function rotate_light(angX, angY, angZ) {
+		var MRot = get_MRotateRelativeXYZ(angX, angY, angZ, [0,0,0]);
+		var light_ort_4v = [
+			light_ort_3v[0],
+			light_ort_3v[1],
+			light_ort_3v[2],
+			1 ];
+		light_ort_4v = get_VMMult(light_ort_4v, MRot);
+		light_ort_3v = [
+			light_ort_4v[0],
+			light_ort_4v[1],
+			light_ort_4v[2]];
+		
+		clear_scene();
+		redraw_figure();
+		
+	}
+	
+	
+	
 	
 	function get_MMMult(M1, M2) {
 		var MR = [];
@@ -547,6 +611,19 @@
 		return M;
 	}
 	
+	function get_MRotateRelativeXYZ(angX, angY, angZ, CenterXYZ) {  // матрица вращения на заданные углы вокруг центра вращения
+		var MRotX = get_MRotateX(angX);
+		var MRotY = get_MRotateY(angY);
+		var MRotZ = get_MRotateZ(angZ);
+		var MRot = get_MMMult(MRotX, MRotY);
+		MRot = get_MMMult(MRot, MRotZ);
+		
+		var MMoveToZero = get_MMove(-CenterXYZ[0],-CenterXYZ[1],-CenterXYZ[2]);
+		var MMoveToC = get_MMove(CenterXYZ[0],CenterXYZ[1],CenterXYZ[2]);
+		var MChange = get_MMMult(get_MMMult(MMoveToZero, MRot),MMoveToC);
+		return MChange;
+	}
+	
 	function get_VVScalar(V1, V2) {
 		var length = V1.length;
 		if ( length > V2.length ) length = V2.length;
@@ -556,8 +633,40 @@
 		return scalar;
 	}
 	
+	function get_VOrt_3v(V_3v) {
+		var sum_of_squares = 0;
+		for (var i=0; i<3; i++) 
+			sum_of_squares += V_3v[i]*V_3v[i];
+	    var abs_vector = Math.sqrt(sum_of_squares);
+		var VResult = [];
+		for (var i=0; i<3; i++) 
+			VResult[i] = V_3v[i]/abs_vector;
+		return VResult;
+	}
+	
 	</script>
 </canvas>
+
+<div></div>
+<button onclick="onclick_rotate_figure(3.14*(+0.1),0,0);">RotateFigureX + </button>
+<button onclick="onclick_rotate_figure(3.14*(-0.1),0,0);">RotateFigureX - </button>
+<div></div>
+<button onclick="onclick_rotate_figure(0,3.14*(+0.1),0);">RotateFigureY + </button>
+<button onclick="onclick_rotate_figure(0,3.14*(-0.1),0);">RotateFigureY - </button>
+<div></div>
+<button onclick="onclick_rotate_figure(0,0,3.14*(+0.1));">RotateFigureZ + </button>
+<button onclick="onclick_rotate_figure(0,0,3.14*(-0.1));">RotateFigureZ - </button>
+<div></div>
+<button onclick="set_new_random_color_for_figure();">Set New Random Color</button>
+<div></div>
+<button onclick="rotate_light(3.14*(+0.1),0,0);">RotateLightX + </button>
+<button onclick="rotate_light(3.14*(-0.1),0,0);">RotateLightX - </button>
+<div></div>
+<button onclick="rotate_light(0,3.14*(+0.1),0);">RotateLightY + </button>
+<button onclick="rotate_light(0,3.14*(-0.1),0);">RotateLightY - </button>
+<div></div>
+<button onclick="rotate_light(0,0,3.14*(+0.1));">RotateLightZ + </button>
+<button onclick="rotate_light(0,0,3.14*(-0.1));">RotateLightZ - </button>
 
 </body>
 </html>

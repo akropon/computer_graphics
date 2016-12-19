@@ -498,13 +498,72 @@
 	}
 	
 	
+	function rotate_figure_left() {
+		ctx.fillStyle="#f0f0f0";  // grey
+		ctx.fillRect(0,0,canvas.width,canvas.height);  // серый фон
+		fill_zbuf(D);
+			
 	
+		var MMoveToZero = get_MMove(-0.5*W,-0.5*H,-0.5*D);
+		var MMoveToC = get_MMove(0.5*W,0.5*H,0.5*D);
+		var MRot = get_MRotateY(3.14*(-0.05));
+		var MChange = get_MMMult(MMoveToZero,get_MMMult(MRot, MMoveToC));
+		var MChange = get_MMMult(get_MMMult(MMoveToZero, MRot),MMoveToC);
+		for (var i=2; i<=9; i++) {
+			points[i] = get_VMMult(points[i], MChange);
+		}
+		
+		for (var i=0; i<trg.length; i++) {
+			for (var t=0; t<3; t++) {
+				trg[i][t] = get_VMMult(trg[i][t], MChange);
+			}
+		}
+		
+		//var doo = points[2];
+		
+		
+		//alert(str);
+		
+		//alert("go");
+		//var posle = points[2];
+		
+		//alert(get_MPrint(MMove) + "\n\n"+get_VPrint(doo) + "\n" + get_VPrint(posle));
+		
+		ctx.fillStyle="#000000";
+		draw_line(points[2], points[3]);
+		draw_line(points[3], points[4]);
+		draw_line(points[4], points[5]);
+		draw_line(points[5], points[2]);
+		draw_line(points[6], points[7]);
+		draw_line(points[7], points[8]);
+		draw_line(points[8], points[9]);
+		draw_line(points[9], points[6]);
+		draw_line(points[2], points[6]);
+		draw_line(points[3], points[7]);
+		draw_line(points[4], points[8]);
+		draw_line(points[5], points[9]);
+		
+		
+		
+		draw_polynome_3d(trg[0], "#ffff00");
+		
+		ctx.fillStyle="#ff0000";
+		for (var i=0; i<trg.length; i++) {
+			draw_line(trg[i][0], trg[i][1]);
+			draw_line(trg[i][1], trg[i][2]);
+			draw_line(trg[i][2], trg[i][0]);
+		}
+			
+			//draw_line(points[6], points[7]);
 	
+	}
 	
 	
 	
 	</script>
 </canvas>
-
+<div></div>
+<button onclick="rotate_figure_left();">Вращать влево</button>
+<button onclick="rotate_figure_left();">Вращать влево2</button>
 </body>
 </html>
