@@ -79,10 +79,10 @@
 	
 	function generate_figure() {
 		// Геренируем массив точек линии Безье
-		var bezier = get_bezier3p(0.05, points[2], points[3], points[4]);
+		var bezier = get_bezier3p(0.01, points[2], points[3], points[4]);
 		
 		var bezier_prev = [];
-		var num_vert = 10;
+		var num_vert = 100;
 		
 		// Матрица поворота на заданный угол линии Безье один раз
 		var MRotate = get_MRotateY(Math.PI * 2 / num_vert);
@@ -113,14 +113,28 @@
 			
 			// Запоминаем треугольники
 			for (var t=0; t<bezier.length-1; t++) {
+				// первый треугольник против часовой стрелки
+				trg[trg.length] = [
+					bezier_prev[t], 
+					bezier[t], 
+					bezier_prev[t+1]];
+				// первый треугольник по часовой стрелке
 				trg[trg.length] = [
 					bezier_prev[t], 
 					bezier_prev[t+1], 
 					bezier[t]];
+				// второй треугольник против часовой стрелки
 				trg[trg.length] = [
 					bezier[t], 
 					bezier_prev[t+1], 
 					bezier[t+1]];
+				// второй треугольник по часовой стрелке
+				trg[trg.length] = [
+					bezier[t], 
+					bezier[t+1], 
+					bezier_prev[t+1]];
+				
+				
 			}
 			// Запоминаем контуры
 			points[points.length] = bezier_prev[0];
@@ -268,6 +282,8 @@
 		var triangle = [polynome[0], polynome[1], polynome[2]];
 		var plane = get_plane_of_triangle(triangle);
 		
+		if ( get_VVScalar(plane, [0,0,1]) <= 0 ) return;
+		
 		color = get_color_with_shadow(light_ort_3v, plane, color);
 		
 		var y_max = polynome[0][1];
@@ -389,7 +405,6 @@
 		var int_green 	= parseInt(color.charAt(3)+color.charAt(4),16);
 		var int_blue 	= parseInt(color.charAt(5)+color.charAt(6),16);
 		
-		
 		//alert("incolor="+color+"\nint_red="+int_red+"\nint_green="+int_green+"\nint_blue="+int_blue);
 	
 		var normal_ort = [];
@@ -399,14 +414,12 @@
 		normal_ort[1] = plane_3v[1]/normal_length;
 		normal_ort[2] = plane_3v[2]/normal_length;
 		
-		var scalar = 0;
-		for (var i=0; i<3; i++)
-			scalar += normal_ort[i]*light_ort_3v[i];
+		var scalar = get_VVScalar(normal_ort, light_ort_3v);
 		// scalar lies in [-1;1]
 			
 		var shadow_factor = (scalar+1)/2;
-		/*if (shadow_factor<0) shadow_factor = 0;
-		else if (shadow_factor>1) shadow_factor = 1;*/
+		if (shadow_factor<0) shadow_factor = 0;
+		else if (shadow_factor>1) shadow_factor = 1;
 		// shadow_factor lies in [0;1]
 		
 		int_red   = Math.floor(int_red * shadow_factor);
@@ -534,6 +547,14 @@
 		return M;
 	}
 	
+	function get_VVScalar(V1, V2) {
+		var length = V1.length;
+		if ( length > V2.length ) length = V2.length;
+		var scalar = 0;
+		for (var i=0; i<length; i++)
+			scalar += V1[i]*V2[i];
+		return scalar;
+	}
 	
 	</script>
 </canvas>
