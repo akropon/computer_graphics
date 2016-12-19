@@ -209,12 +209,12 @@
 	}
 	
 	function draw_line(A, B) {	// A = [x,y,z,w], B - the same
-		var X0 = Math.floor(A[0]/A[3]);
-		var Y0 = Math.floor(A[1]/A[3]);
-		var Z0 = Math.floor(A[2]/A[3]);
-		var X1 = Math.floor(B[0]/B[3]);
-		var Y1 = Math.floor(B[1]/B[3]);
-		var Z1 = Math.floor(B[2]/B[3]);
+		var X0 = Math.round(A[0]/A[3]);
+		var Y0 = Math.round(A[1]/A[3]);
+		var Z0 = Math.round(A[2]/A[3]);
+		var X1 = Math.round(B[0]/B[3]);
+		var Y1 = Math.round(B[1]/B[3]);
+		var Z1 = Math.round(B[2]/B[3]);
 		
 		var deltaX = Math.abs(X1 - X0);
 		var deltaY = Math.abs(Y1 - Y0);
@@ -324,7 +324,7 @@
 		// между каждой нечетной парой контольных точек отрисовываем линию
 		for (var i=0; i<num_of_chp/2; i++) {
 			//отрисовываем линию
-			for (var X=chp[2*i]+1; X<chp[2*i+1]; X++) {
+			for (var X=chp[2*i]; X<chp[2*i+1]; X++) {
 				var Z = get_Z(X,Y,plane);
 				
 				if (Z < zbuf[X][Y]) {
