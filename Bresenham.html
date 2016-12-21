@@ -1,0 +1,110 @@
+<html>
+<body>
+
+<canvas id='try01' width='1000' height='1000'>
+  <script>
+    /*
+		Определены 2 фукнции: рисования отрезка и рисования окружности.
+		Затем идет отрисовка окружностей и отрезков.
+	*/
+  
+	function draw_line(X0, Y0, X1, Y1) {
+		var canvas = document.getElementById('try01');
+		var ctx = canvas.getContext('2d');
+		
+		var deltaX = Math.abs(X1 - X0);
+		var deltaY = Math.abs(Y1 - Y0);
+		var dX_more = deltaX >= deltaY;
+		var error = 0;
+		var addX = X0 < X1 ? 1 : -1;
+		var addY = Y0 < Y1 ? 1 : -1;
+		
+		if ( dX_more ) {
+			var deltaErr = deltaY;
+			var y = Y0;
+			for ( x = X0 ; x != X1 ; x += addX ) {
+				ctx.fillRect(x,y,1,1);
+				error += deltaErr;
+				if ( 2 * error >= deltaX ) {
+					y += addY;
+					error -= deltaX;
+				}
+			}
+		}
+		else {
+			var deltaErr = deltaX;
+			var x = X0;
+			for ( y = Y0 ; y != Y1 ; y += addY ) {
+				ctx.fillRect(x,y,1,1);
+				error += deltaErr;
+				if ( 2 * error >= deltaY ) {
+					x += addX;
+					error -= deltaY;
+				}
+			}
+		}
+	}
+  
+	function draw_circle(X0, Y0, R0) {
+		var canvas = document.getElementById('try01');
+		var ctx = canvas.getContext('2d');
+		//ctx.fillRect(, b+y, 1, 1);
+		
+		var a = X0;
+		var b = Y0;
+		var r = R0;
+		var x = 0;
+		var y = r;
+		var delta = 5-2*r;
+		var gap = 0;
+
+		while (y>=0) {
+		  ctx.fillRect(a+x, b+y, 1,1);
+		  ctx.fillRect(a+x, b-y, 1,1);
+		  ctx.fillRect(a-x, b-y, 1,1);
+		  ctx.fillRect(a-x, b+y, 1,1);
+		  gap = 2*(delta+y)-1;
+		  if (delta < 0 && gap <= 0) {
+			x++;
+			delta += 2*x+1;
+			continue;
+		  }
+		  if ( delta>0 && gap>0) {
+			y--;
+			delta -= 2*y+1;
+			continue;
+		  }
+		  x++;
+		  delta += 2*(x-y);
+		  y--;
+		}
+	}
+    
+	
+	draw_circle(200, 200, 100);
+	draw_circle(200, 200, 50);
+	draw_circle(225, 200, 25);
+	draw_circle(200, 225, 25);
+	draw_circle(175, 200, 25);
+	draw_circle(200, 175, 25);
+  
+	
+	var pi = 3.14;
+	var N = 10;
+	var fi = 0.0;
+	
+	for (var i = 0; i<N; i++) {
+		//alert(1);
+		fi = 2*pi / N * i; //alert("fi="+fi);
+		draw_line(
+			parseInt(200+Math.sin(fi)*150),
+			parseInt(200+Math.cos(fi)*150),
+			parseInt(200+Math.cos(fi)*75),
+			parseInt(200-Math.sin(fi)*75));
+	}
+  
+  </script>
+</canvas>
+
+</body>
+</html>
